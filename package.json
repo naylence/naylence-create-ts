@@ -1,6 +1,6 @@
 {
   "name": "@naylence/create",
-  "version": "0.1.1",
+  "version": "0.1.2",
   "description": "CLI to scaffold Naylence starter templates",
   "author": "Naylence Dev <naylencedev@gmail.com>",
   "license": "Apache-2.0",
@@ -46,8 +46,8 @@
   "dependencies": {
     "commander": "^12.1.0",
     "fs-extra": "^11.2.0",
-    "prompts": "^2.4.2",
     "picocolors": "^1.1.1",
+    "prompts": "^2.4.2",
     "tar": "^7.4.3"
   },
   "devDependencies": {
@@ -57,7 +57,7 @@
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "typescript": "^5.7.3",
-    "vitest": "^2.1.8"
+    "vitest": "^4.0.16"
   },
   "engines": {
     "node": ">=18.0.0"

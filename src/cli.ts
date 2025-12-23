@@ -18,6 +18,7 @@ import {
   resolveTemplateNextSteps,
   templateExists,
 } from "./templates.js";
+import { selectFlavor } from "./flavor-selection.js";
 import { generateProject, runInstall } from "./generator.js";
 import { fetchFromGithub, cleanupTempDir } from "./github.js";
 import {
@@ -32,7 +33,7 @@ const VERSION = "0.1.0";
 
 interface CliOptions {
   template?: string;
-  flavor: string;
+  flavor?: string;
   list: boolean;
   install: boolean;
   noInstall: boolean;
@@ -51,7 +52,7 @@ async function main(): Promise<void> {
     .version(VERSION)
     .argument("[target-dir]", "Directory to create the project in")
     .option("-t, --template <id>", "Template ID (e.g., agent-on-sentinel)")
-    .option("-f, --flavor <flavor>", "Template flavor (ts, py, poly)", DEFAULT_FLAVOR)
+    .option("-f, --flavor <flavor>", "Template flavor (ts, py, poly)")
     .option("-l, --list", "List available templates and exit", false)
     .option("--install", "Run package manager install after generation", false)
     .option("--no-install", "Skip package manager install (default)")
@@ -198,15 +199,6 @@ async function resolveTemplateAndFlavor(
   cliTemplate?: string,
   cliFlavor?: string
 ): Promise<{ templateId: string; flavor: string }> {
-  // If template provided via CLI, use it
-  if (cliTemplate) {
-    return {
-      templateId: cliTemplate,
-      flavor: cliFlavor || DEFAULT_FLAVOR,
-    };
-  }
-
-  // Interactive mode
   const templates = await discoverTemplates(startersPath, {
     onWarning: (message) => console.warn(pc.yellow(message)),
   });
@@ -215,7 +207,52 @@ async function resolveTemplateAndFlavor(
     throw new Error("No templates found in starters repo");
   }
 
-  // Prompt for template
+  const promptForFlavor = async (templateId: string, choices: { title: string; value: string }[]) => {
+    const response = await prompts({
+      type: "select",
+      name: "flavor",
+      message: "Select a flavor:",
+      choices,
+    });
+
+    if (!response.flavor) {
+      throw new Error("Flavor selection cancelled");
+    }
+
+    return response.flavor as string;
+  };
+
+  const resolveFlavor = async (selectedTemplateId: string) => {
+    const selectedTemplate = templates.find((template) => template.id === selectedTemplateId);
+    if (!selectedTemplate) {
+      throw new Error(
+        `Template not found: ${selectedTemplateId}\n` +
+          `Run with --list to see available templates.`
+      );
+    }
+
+    const selection = await selectFlavor(selectedTemplate, {
+      cliFlavor,
+      defaultFlavor: DEFAULT_FLAVOR,
+      prompt: async (template) =>
+        promptForFlavor(template.id, buildFlavorChoices(template)),
+    });
+
+    if (selection.reason === "default" && selectedTemplate.flavors.length > 1) {
+      console.log(pc.dim(`Using flavor: ${selection.flavor}`));
+    }
+
+    return selection.flavor;
+  };
+
+  if (cliTemplate) {
+    return {
+      templateId: cliTemplate,
+      flavor: await resolveFlavor(cliTemplate),
+    };
+  }
+
+  // Interactive mode
   const templateResponse = await prompts({
     type: "select",
     name: "templateId",
@@ -227,31 +264,9 @@ async function resolveTemplateAndFlavor(
     throw new Error("Template selection cancelled");
   }
 
-  const selectedTemplate = templates.find((t) => t.id === templateResponse.templateId)!;
-
-  // If only one flavor, use it
-  if (selectedTemplate.flavors.length === 1) {
-    return {
-      templateId: templateResponse.templateId,
-      flavor: selectedTemplate.flavors[0],
-    };
-  }
-
-  // Prompt for flavor
-  const flavorResponse = await prompts({
-    type: "select",
-    name: "flavor",
-    message: "Select a flavor:",
-    choices: buildFlavorChoices(selectedTemplate),
-  });
-
-  if (!flavorResponse.flavor) {
-    throw new Error("Flavor selection cancelled");
-  }
-
   return {
     templateId: templateResponse.templateId,
-    flavor: flavorResponse.flavor,
+    flavor: await resolveFlavor(templateResponse.templateId),
   };
 }
 
