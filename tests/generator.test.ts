@@ -15,6 +15,7 @@ import {
   discoverTemplates,
   formatTemplateList,
   buildTemplateChoices,
+  resolveTemplateNextSteps,
   generateProject,
   ensureEnvFiles,
   templateExists,
@@ -123,6 +124,7 @@ describe("template discovery", () => {
     expect(agentTemplate).toBeDefined();
     expect(agentTemplate!.name).toBe("Agent on Sentinel");
     expect(agentTemplate!.description).toContain("Starter agent");
+    expect(agentTemplate!.flavorDetails?.py?.nextSteps).toContain("python3 -m venv .venv");
 
     const listOutput = formatTemplateList([agentTemplate!]);
     expect(listOutput).toContain("Agent on Sentinel (agent-on-sentinel)");
@@ -131,6 +133,22 @@ describe("template discovery", () => {
     const choices = buildTemplateChoices([agentTemplate!]);
     expect(choices[0].title).toBe("Agent on Sentinel");
     expect(choices[0].description).toContain("Starter agent");
+  });
+
+  it("resolves manifest-defined next steps per flavor", async () => {
+    const tsSteps = await resolveTemplateNextSteps(
+      STARTERS_PATH,
+      "agent-on-sentinel",
+      "ts"
+    );
+    const pySteps = await resolveTemplateNextSteps(
+      STARTERS_PATH,
+      "agent-on-sentinel",
+      "py"
+    );
+
+    expect(tsSteps).toContain("npm install");
+    expect(pySteps).toContain("python3 -m venv .venv");
   });
 
   it("falls back to directory scan when manifest is missing", async () => {

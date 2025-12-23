@@ -4,6 +4,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import {
+  TemplateFlavorInfo,
   TemplateInfo,
   TemplateManifest,
   TemplateManifestEntry,
@@ -81,6 +82,31 @@ export async function resolveTemplateFlavorPath(
   return getTemplatePath(startersPath, templateId, flavor);
 }
 
+export async function resolveTemplateNextSteps(
+  startersPath: string,
+  templateId: string,
+  flavor: string
+): Promise<string[] | null> {
+  try {
+    const manifest = await readTemplateManifest(startersPath);
+    if (manifest) {
+      const entry = manifest.templates.find((template) => template.id === templateId);
+      if (!entry) {
+        return null;
+      }
+
+      const flavorEntry = entry.flavors.find((item) => item.id === flavor);
+      if (flavorEntry?.nextSteps && flavorEntry.nextSteps.length > 0) {
+        return flavorEntry.nextSteps;
+      }
+    }
+  } catch {
+    // Ignore manifest errors here; fall back to defaults.
+  }
+
+  return null;
+}
+
 /**
  * Check if a template+flavor exists.
  */
@@ -144,6 +170,17 @@ export function buildTemplateChoices(templates: TemplateInfo[]): TemplatePromptC
       title: template.name || template.id,
       value: template.id,
       description: descriptionParts.length > 0 ? descriptionParts.join(" | ") : undefined,
+    };
+  });
+}
+
+export function buildFlavorChoices(template: TemplateInfo): TemplatePromptChoice[] {
+  return template.flavors.map((flavorId) => {
+    const details = template.flavorDetails?.[flavorId];
+    const title = details?.name ? `${details.name} (${flavorId})` : flavorId;
+    return {
+      title,
+      value: flavorId,
     };
   });
 }
@@ -227,15 +264,11 @@ function normalizeManifestEntry(
 }
 
 function normalizeManifestFlavor(
-  flavor: string | TemplateManifestFlavor,
+  flavor: TemplateManifestFlavor,
   templateId: string,
   flavorIndex: number,
   manifestPath: string
 ): TemplateManifestFlavor {
-  if (typeof flavor === "string") {
-    return { id: flavor };
-  }
-
   if (!flavor || typeof flavor !== "object") {
     throw new Error(
       `Invalid flavor entry for ${templateId} at index ${flavorIndex}: ${manifestPath}`
@@ -254,10 +287,36 @@ function normalizeManifestFlavor(
     );
   }
 
+  if (flavor.nextSteps) {
+    normalizeNextSteps(
+      flavor.nextSteps,
+      `nextSteps for ${templateId}/${flavor.id}`,
+      manifestPath
+    );
+  }
+
   return {
     id: flavor.id,
     path: flavor.path,
+    name: flavor.name,
+    nextSteps: flavor.nextSteps,
   };
+}
+
+function normalizeNextSteps(
+  steps: string[] | undefined,
+  label: string,
+  manifestPath: string
+): string[] | undefined {
+  if (!steps) {
+    return undefined;
+  }
+
+  if (!Array.isArray(steps) || steps.some((step) => typeof step !== "string")) {
+    throw new Error(`Invalid ${label}: ${manifestPath}`);
+  }
+
+  return steps;
 }
 
 function buildManifestWarning(startersPath: string, error: Error): string {
@@ -280,6 +339,7 @@ async function templatesFromManifest(
 
     const flavors: string[] = [];
     const flavorPaths: Record<string, string> = {};
+    const flavorDetails: Record<string, TemplateFlavorInfo> = {};
 
     for (const flavor of entry.flavors) {
       const relativePath = flavor.path || flavor.id;
@@ -290,6 +350,12 @@ async function templatesFromManifest(
         if (relativePath !== flavor.id) {
           flavorPaths[flavor.id] = relativePath;
         }
+        flavorDetails[flavor.id] = {
+          id: flavor.id,
+          name: flavor.name,
+          path: flavor.path,
+          nextSteps: flavor.nextSteps,
+        };
       }
     }
 
@@ -303,6 +369,7 @@ async function templatesFromManifest(
       description: entry.description,
       flavors,
       flavorPaths: Object.keys(flavorPaths).length > 0 ? flavorPaths : undefined,
+      flavorDetails: Object.keys(flavorDetails).length > 0 ? flavorDetails : undefined,
       path: templatePath,
       order: entry.order,
       category: entry.category,

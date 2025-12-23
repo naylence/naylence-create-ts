@@ -4,11 +4,13 @@
  */
 export {
   buildTemplateChoices,
+  buildFlavorChoices,
   discoverTemplates,
   formatTemplateList,
   templateExists,
   getTemplatePath,
   resolveTemplateFlavorPath,
+  resolveTemplateNextSteps,
 } from "./templates.js";
 export {
   generateProject,

@@ -12,8 +12,10 @@ import pc from "picocolors";
 import path from "node:path";
 import {
   buildTemplateChoices,
+  buildFlavorChoices,
   discoverTemplates,
   formatTemplateList,
+  resolveTemplateNextSteps,
   templateExists,
 } from "./templates.js";
 import { generateProject, runInstall } from "./generator.js";
@@ -134,7 +136,12 @@ async function run(targetDir: string | undefined, options: CliOptions): Promise<
     }
 
     // Print next steps
-    printNextSteps(targetDir, genOptions.install);
+    const manifestNextSteps = await resolveTemplateNextSteps(
+      startersPath,
+      templateId,
+      flavor
+    );
+    printNextSteps(targetDir, genOptions.install, manifestNextSteps);
   } finally {
     // Clean up temp directory if we fetched from GitHub
     if (shouldCleanup) {
@@ -235,10 +242,7 @@ async function resolveTemplateAndFlavor(
     type: "select",
     name: "flavor",
     message: "Select a flavor:",
-    choices: selectedTemplate.flavors.map((f) => ({
-      title: f,
-      value: f,
-    })),
+    choices: buildFlavorChoices(selectedTemplate),
   });
 
   if (!flavorResponse.flavor) {
@@ -251,9 +255,21 @@ async function resolveTemplateAndFlavor(
   };
 }
 
-function printNextSteps(targetDir: string, installed: boolean): void {
+function printNextSteps(
+  targetDir: string,
+  installed: boolean,
+  nextSteps: string[] | null
+): void {
   console.log("Next steps:\n");
   console.log(`  cd ${targetDir}`);
+
+  if (nextSteps && nextSteps.length > 0) {
+    for (const step of nextSteps) {
+      console.log(`  ${step}`);
+    }
+    console.log("");
+    return;
+  }
 
   if (!installed) {
     console.log("  npm install");

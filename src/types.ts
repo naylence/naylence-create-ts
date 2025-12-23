@@ -8,6 +8,7 @@ export interface TemplateInfo {
   description?: string;
   flavors: string[];
   flavorPaths?: Record<string, string>;
+  flavorDetails?: Record<string, TemplateFlavorInfo>;
   path: string;
   order?: number;
   category?: string;
@@ -19,15 +20,22 @@ export interface TemplateInfo {
 export interface TemplateManifestFlavor {
   id: string;
   path?: string;
+  name?: string;
+  nextSteps?: string[];
 }
 
-export type TemplateManifestFlavorInput = string | TemplateManifestFlavor;
+export interface TemplateFlavorInfo {
+  id: string;
+  name?: string;
+  path?: string;
+  nextSteps?: string[];
+}
 
 export interface TemplateManifestEntryInput {
   id: string;
   name: string;
   description: string;
-  flavors: TemplateManifestFlavorInput[];
+  flavors: TemplateManifestFlavor[];
   order?: number;
   category?: string;
   aliases?: string[];
