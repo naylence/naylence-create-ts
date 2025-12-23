@@ -2,15 +2,38 @@
   "name": "@naylence/create",
   "version": "0.1.0",
   "description": "CLI to scaffold Naylence starter templates",
+  "author": "Naylence Dev <naylencedev@gmail.com>",
   "license": "Apache-2.0",
   "type": "module",
+  "keywords": [
+    "naylence",
+    "cli",
+    "templates",
+    "scaffold",
+    "starter",
+    "typescript"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/naylence/naylence-create-ts"
+  },
+  "bugs": {
+    "url": "https://github.com/naylence/naylence-create-ts/issues"
+  },
+  "homepage": "https://github.com/naylence/naylence-create-ts#readme",
   "bin": {
     "naylence-create": "dist/cli.js"
   },
   "main": "dist/index.js",
   "files": [
-    "dist"
+    "dist",
+    "README.md",
+    "LICENSE"
   ],
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
+  },
   "scripts": {
     "dev": "tsx src/cli.ts",
     "build": "tsup",
